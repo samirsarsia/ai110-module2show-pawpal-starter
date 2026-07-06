@@ -31,8 +31,9 @@ classDiagram
 
     class Scheduler {
         +Owner owner
-        +Pet pet
         +int time_budget
+        +str day_start
+        +collect_tasks() list~Task~
         +build_plan() list~dict~
         +sort_tasks(tasks) list~Task~
         +filter_tasks(tasks, budget) list~Task~
@@ -41,5 +42,5 @@ classDiagram
     Owner "1" --> "*" Pet : owns
     Pet "1" --> "*" Task : has
     Scheduler --> Owner : uses
-    Scheduler --> Pet : schedules
+    Scheduler ..> Pet : schedules all
     Scheduler ..> Task : plans

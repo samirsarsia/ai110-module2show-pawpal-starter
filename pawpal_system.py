@@ -76,23 +76,36 @@ class Owner:
 
 
 class Scheduler:
-    """Builds a daily plan from a pet's tasks within the owner's constraints.
+    """Builds a daily plan across all of an owner's pets within their constraints.
 
     This is where the "smart" behavior lives. It is kept as a plain class (not a
     dataclass) because it represents logic rather than a data record.
+
+    It schedules tasks for every pet the owner has (owner.pets), anchoring the
+    plan to a day_start time so build_plan() can compute real clock times.
     """
 
-    def __init__(self, owner: Owner, pet: Pet, time_budget: int | None = None) -> None:
+    def __init__(
+        self,
+        owner: Owner,
+        time_budget: int | None = None,
+        day_start: str = "08:00",
+    ) -> None:
         self.owner = owner
-        self.pet = pet
         # Fall back to the owner's available time if no explicit budget is given.
         self.time_budget = time_budget if time_budget is not None else owner.available_minutes
+        # Clock time the day's plan begins from (used to compute start/end slots).
+        self.day_start = day_start
+
+    def collect_tasks(self) -> list[Task]:
+        """Gather the care tasks across all of the owner's pets."""
+        raise NotImplementedError
 
     def build_plan(self) -> list[dict]:
-        """Select and order tasks within the time budget.
+        """Select and order tasks (across all pets) within the time budget.
 
         Returns an ordered list of dicts, one per scheduled task, e.g.:
-            {"title": ..., "start": ..., "end": ..., "priority": ..., "reason": ...}
+            {"pet": ..., "title": ..., "start": ..., "end": ..., "priority": ..., "reason": ...}
         """
         raise NotImplementedError
 
