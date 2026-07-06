@@ -145,6 +145,10 @@ if st.button("Generate schedule"):
         # Read straight from the persisted Owner — no rebuilding needed.
         owner.set_available_time(int(time_budget))
         scheduler = Scheduler(owner, day_start=day_start)
+
+        # Warn about overlapping preferred times (does not stop the plan).
+        for warning in scheduler.detect_conflicts():
+            st.warning(warning)
         plan = scheduler.build_plan()
 
         st.markdown(f"### 🗓️ Today's plan for {owner.name}")

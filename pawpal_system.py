@@ -250,6 +250,38 @@ class Scheduler:
                 return list(pet.tasks)
         return []
 
+    def detect_conflicts(self) -> list[str]:
+        """Return warning strings for tasks whose preferred times overlap.
+
+        Lightweight strategy: for every incomplete task that has a preferred_time,
+        compute its [start, end) interval (start = preferred time, end = start +
+        duration). Sort by start, then flag any task that begins before the
+        previous one ends. This returns a list of human-readable warnings instead
+        of raising, so callers can display them and keep running. Tasks with no
+        preferred_time are ignored (they float and never "conflict").
+        """
+        # Build (start, end, pet_name, task) for timed, incomplete tasks.
+        timed: list[tuple[int, int, str, Task]] = []
+        for pet, task in self.collect_tasks():
+            if task.preferred_time:
+                start = _parse_time(task.preferred_time)
+                timed.append((start, start + task.duration_minutes, pet.name, task))
+
+        timed.sort(key=lambda item: item[0])
+
+        warnings: list[str] = []
+        for i in range(1, len(timed)):
+            prev_start, prev_end, prev_pet, prev_task = timed[i - 1]
+            start, _end, pet_name, task = timed[i]
+            if start < prev_end:  # overlap
+                same = "same pet" if pet_name == prev_pet else "different pets"
+                warnings.append(
+                    f"⚠️ Conflict ({same}): '{prev_task.title}' ({prev_pet}, "
+                    f"{prev_task.preferred_time}–{_format_time(prev_end)}) overlaps "
+                    f"'{task.title}' ({pet_name}, starts {task.preferred_time})."
+                )
+        return warnings
+
     def filter_tasks(self, tasks: list[Task], budget: int) -> list[Task]:
         """Greedily keep tasks (in the given order) that fit the time budget.
 

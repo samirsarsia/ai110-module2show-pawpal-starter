@@ -27,6 +27,11 @@ def build_demo_owner() -> Owner:
     cat.add_task(Task("Play / enrichment", 20, "low", preferred_time="17:00"))
     cat.add_task(Task("Feed cat", 5, "high", preferred_time="08:15"))
 
+    # Two tasks deliberately scheduled at the SAME time to trigger a conflict:
+    # the dog's walk (08:00, 30 min) already runs until 08:30, and this feeding
+    # also wants 08:00 — the scheduler should warn instead of crashing.
+    cat.add_task(Task("Vet call", 15, "high", preferred_time="08:00"))
+
     # Mark one task done so filter_by_status() has something to hide/show.
     dog.tasks[0].mark_complete()  # Grooming already done today
 
@@ -104,10 +109,27 @@ def print_schedule(owner: Owner) -> None:
     print("=" * 52)
 
 
+def demo_conflicts(owner: Owner) -> None:
+    """Show detect_conflicts() flagging overlapping tasks with a warning."""
+    scheduler = Scheduler(owner)
+    warnings = scheduler.detect_conflicts()
+
+    print("\n" + "=" * 52)
+    print("  Conflict detection demo")
+    print("=" * 52)
+    if warnings:
+        for w in warnings:
+            print(f"  {w}")
+    else:
+        print("  No conflicts detected.")
+    print("=" * 52)
+
+
 def main() -> None:
     owner = build_demo_owner()
     print_schedule(owner)
     demo_sorting_and_filtering(owner)
+    demo_conflicts(owner)
 
 
 if __name__ == "__main__":
