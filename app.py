@@ -50,18 +50,34 @@ if "owner" not in st.session_state:
 
 owner = st.session_state.owner  # the same persistent object across reruns
 
-st.subheader("Owner & Pet")
+st.subheader("Owner & Pets")
 owner.name = st.text_input("Owner name", value=owner.name)
+
+# --- Add a Pet ------------------------------------------------------------
+# The form handler builds a Pet from the inputs and hands it to the logic
+# layer via Owner.add_pet(). Because `owner` lives in st.session_state, the
+# new pet persists; Streamlit reruns after the submit, so the pet selector
+# below re-reads owner.pets and shows the addition automatically.
+with st.form("add_pet_form", clear_on_submit=True):
+    st.markdown("**Add a pet**")
+    new_pet_name = st.text_input("New pet name", value="")
+    new_pet_species = st.selectbox("New pet species", ["dog", "cat", "other"])
+    if st.form_submit_button("Add pet"):
+        if new_pet_name.strip():
+            owner.add_pet(Pet(new_pet_name.strip(), new_pet_species))
+            st.success(f"Added {new_pet_name.strip()} ({new_pet_species}).")
+        else:
+            st.warning("Give the pet a name first.")
 
 # Ensure the owner has at least one pet to attach tasks to.
 if not owner.pets:
     owner.add_pet(Pet("Mochi", "dog"))
-pet = owner.pets[0]
 
-pet.name = st.text_input("Pet name", value=pet.name)
-pet.species = st.selectbox(
-    "Species", ["dog", "cat", "other"], index=["dog", "cat", "other"].index(pet.species)
-)
+# Let the user pick which pet they're adding tasks to.
+pet_names = [p.name for p in owner.pets]
+selected = st.selectbox("Select a pet to manage", pet_names)
+pet = owner.pets[pet_names.index(selected)]
+st.caption(f"Managing **{pet.name}** ({pet.species}).")
 
 st.markdown("### Tasks")
 st.caption("Tasks are stored on the persisted Owner's pet, so they survive page refreshes.")
