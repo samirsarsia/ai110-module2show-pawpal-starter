@@ -40,16 +40,31 @@ At minimum, your system should:
 
 st.divider()
 
-st.subheader("Quick Demo Inputs (UI only)")
-owner_name = st.text_input("Owner name", value="Jordan")
-pet_name = st.text_input("Pet name", value="Mochi")
-species = st.selectbox("Species", ["dog", "cat", "other"])
+# --- Application "memory" -------------------------------------------------
+# Streamlit reruns this whole script on every interaction, so a plain
+# `owner = Owner(...)` would be recreated (empty) on each click. Instead we
+# store a single Owner instance in st.session_state — the session "vault" that
+# survives reruns — and check-before-create so it is only built once.
+if "owner" not in st.session_state:
+    st.session_state.owner = Owner("Jordan", available_minutes=90)
+
+owner = st.session_state.owner  # the same persistent object across reruns
+
+st.subheader("Owner & Pet")
+owner.name = st.text_input("Owner name", value=owner.name)
+
+# Ensure the owner has at least one pet to attach tasks to.
+if not owner.pets:
+    owner.add_pet(Pet("Mochi", "dog"))
+pet = owner.pets[0]
+
+pet.name = st.text_input("Pet name", value=pet.name)
+pet.species = st.selectbox(
+    "Species", ["dog", "cat", "other"], index=["dog", "cat", "other"].index(pet.species)
+)
 
 st.markdown("### Tasks")
-st.caption("Add a few tasks. In your final version, these should feed into your scheduler.")
-
-if "tasks" not in st.session_state:
-    st.session_state.tasks = []
+st.caption("Tasks are stored on the persisted Owner's pet, so they survive page refreshes.")
 
 col1, col2, col3 = st.columns(3)
 with col1:
@@ -60,13 +75,17 @@ with col3:
     priority = st.selectbox("Priority", ["low", "medium", "high"], index=2)
 
 if st.button("Add task"):
-    st.session_state.tasks.append(
-        {"title": task_title, "duration_minutes": int(duration), "priority": priority}
-    )
+    # Append a real Task to the real Pet on the persisted Owner.
+    pet.add_task(Task(title=task_title, duration_minutes=int(duration), priority=priority))
 
-if st.session_state.tasks:
+if pet.tasks:
     st.write("Current tasks:")
-    st.table(st.session_state.tasks)
+    st.table(
+        [
+            {"title": t.title, "duration_minutes": t.duration_minutes, "priority": t.priority}
+            for t in pet.tasks
+        ]
+    )
 else:
     st.info("No tasks yet. Add one above.")
 
@@ -81,22 +100,11 @@ time_budget = st.number_input(
 day_start = st.text_input("Day starts at (HH:MM)", value="08:00")
 
 if st.button("Generate schedule"):
-    if not st.session_state.tasks:
+    if not pet.tasks:
         st.warning("Add at least one task before generating a schedule.")
     else:
-        # Build the logic-layer objects from the UI inputs.
-        owner = Owner(owner_name, available_minutes=int(time_budget))
-        pet = Pet(pet_name, species)
-        owner.add_pet(pet)
-        for t in st.session_state.tasks:
-            pet.add_task(
-                Task(
-                    title=t["title"],
-                    duration_minutes=int(t["duration_minutes"]),
-                    priority=t["priority"],
-                )
-            )
-
+        # Read straight from the persisted Owner — no rebuilding needed.
+        owner.set_available_time(int(time_budget))
         scheduler = Scheduler(owner, day_start=day_start)
         plan = scheduler.build_plan()
 
@@ -120,7 +128,7 @@ if st.button("Generate schedule"):
 
             scheduled_min = sum(row["duration_minutes"] for row in plan)
             st.caption(
-                f"{len(plan)} of {len(st.session_state.tasks)} tasks scheduled "
+                f"{len(plan)} of {len(pet.tasks)} tasks scheduled "
                 f"· {scheduled_min} of {int(time_budget)} min used."
             )
 
@@ -131,8 +139,6 @@ if st.button("Generate schedule"):
 
             # Show anything that didn't fit the budget.
             scheduled_titles = {row["title"] for row in plan}
-            skipped = [
-                t["title"] for t in st.session_state.tasks if t["title"] not in scheduled_titles
-            ]
+            skipped = [t.title for t in pet.tasks if t.title not in scheduled_titles]
             if skipped:
                 st.warning("Skipped (over budget): " + ", ".join(skipped))
