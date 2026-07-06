@@ -82,26 +82,49 @@ st.caption(f"Managing **{pet.name}** ({pet.species}).")
 st.markdown("### Tasks")
 st.caption("Tasks are stored on the persisted Owner's pet, so they survive page refreshes.")
 
-col1, col2, col3 = st.columns(3)
+col1, col2, col3, col4 = st.columns(4)
 with col1:
     task_title = st.text_input("Task title", value="Morning walk")
 with col2:
     duration = st.number_input("Duration (minutes)", min_value=1, max_value=240, value=20)
 with col3:
     priority = st.selectbox("Priority", ["low", "medium", "high"], index=2)
+with col4:
+    frequency = st.selectbox("Frequency", ["daily", "weekly", "once"], index=0)
 
 if st.button("Add task"):
     # Append a real Task to the real Pet on the persisted Owner.
-    pet.add_task(Task(title=task_title, duration_minutes=int(duration), priority=priority))
+    pet.add_task(
+        Task(
+            title=task_title,
+            duration_minutes=int(duration),
+            priority=priority,
+            frequency=frequency,
+        )
+    )
 
 if pet.tasks:
     st.write("Current tasks:")
-    st.table(
-        [
-            {"title": t.title, "duration_minutes": t.duration_minutes, "priority": t.priority}
-            for t in pet.tasks
-        ]
-    )
+    # Show each task with a "Done" button. Completing a recurring task spawns its
+    # next occurrence automatically via Pet.complete_task().
+    for i, t in enumerate(pet.tasks):
+        c1, c2 = st.columns([5, 1])
+        status = "✅" if t.completed else "⬜"
+        c1.write(
+            f"{status} **{t.title}** — {t.duration_minutes} min, {t.priority}, "
+            f"{t.frequency} (due {t.due_date})"
+        )
+        if not t.completed:
+            if c2.button("Done", key=f"done_{i}"):
+                new_task = pet.complete_task(t)
+                if new_task is not None:
+                    st.success(
+                        f"Marked '{t.title}' done. Next {t.frequency} occurrence "
+                        f"added for {new_task.due_date}."
+                    )
+                else:
+                    st.success(f"Marked '{t.title}' done.")
+                st.rerun()
 else:
     st.info("No tasks yet. Add one above.")
 

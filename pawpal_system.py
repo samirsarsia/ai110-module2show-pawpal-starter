@@ -12,6 +12,7 @@ Design (see diagrams/uml_draft.mmd):
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import date, timedelta
 
 # Single source of truth for how priorities rank when sorting. Higher = more
 # important. Both Task.priority_score() and Scheduler.sort_tasks() use this so
@@ -33,6 +34,7 @@ class Task:
         preferred_time: Optional desired clock time, e.g. "08:00".
         frequency: How often it recurs — "daily", "weekly", or "once".
         completed: Whether the task has been done.
+        due_date: The date this occurrence is due (defaults to today).
     """
 
     title: str
@@ -41,6 +43,7 @@ class Task:
     preferred_time: str | None = None
     frequency: str = "daily"
     completed: bool = False
+    due_date: date = field(default_factory=date.today)
 
     def __post_init__(self) -> None:
         """Validate priority, frequency, and duration after construction."""
@@ -71,6 +74,37 @@ class Task:
         """Alias for mark_done(): mark this task as completed."""
         self.mark_done()
 
+    def is_recurring(self) -> bool:
+        """Return True if this task repeats (daily or weekly)."""
+        return self.frequency in ("daily", "weekly")
+
+    def next_occurrence(self) -> "Task | None":
+        """Build the next occurrence of a recurring task, or None if it's one-off.
+
+        The new due date is computed from THIS task's due_date using timedelta,
+        so a chain of completions advances accurately (handling month/year and
+        leap-year rollovers automatically):
+          - daily  -> due_date + 1 day
+          - weekly -> due_date + 1 week
+          - once   -> no next occurrence (returns None)
+        """
+        if self.frequency == "daily":
+            next_due = self.due_date + timedelta(days=1)
+        elif self.frequency == "weekly":
+            next_due = self.due_date + timedelta(weeks=1)
+        else:  # "once"
+            return None
+
+        return Task(
+            title=self.title,
+            duration_minutes=self.duration_minutes,
+            priority=self.priority,
+            preferred_time=self.preferred_time,
+            frequency=self.frequency,
+            completed=False,  # the new occurrence starts fresh
+            due_date=next_due,
+        )
+
 
 @dataclass
 class Pet:
@@ -92,6 +126,20 @@ class Pet:
     def list_tasks(self) -> list[Task]:
         """Return a copy of this pet's tasks."""
         return list(self.tasks)
+
+    def complete_task(self, task: Task) -> Task | None:
+        """Mark a task complete and auto-add its next occurrence if it recurs.
+
+        This is where completion and frequency interact: for a daily/weekly task,
+        completing it spawns a fresh instance (via Task.next_occurrence) on the
+        next date and appends it to this pet's list. Returns the new occurrence
+        (or None for a one-off task).
+        """
+        task.mark_complete()
+        next_task = task.next_occurrence()
+        if next_task is not None:
+            self.tasks.append(next_task)
+        return next_task
 
 
 @dataclass
