@@ -22,6 +22,29 @@ Your final app should:
 - Display the plan clearly (and ideally explain the reasoning)
 - Include tests for the most important scheduling behaviors
 
+## ✨ Features
+
+PawPal+ implements the following capabilities (each backed by a method in
+`pawpal_system.py` — see [Smarter Scheduling](#-smarter-scheduling) for details):
+
+- **Multi-pet management** — one owner can manage many pets, each with its own
+  list of care tasks.
+- **Priority-aware planning** — the scheduler orders tasks by priority (high
+  first) and fits as many as possible into the owner's available time budget.
+- **Sorting by time** — tasks can be listed chronologically by their preferred
+  time (`Scheduler.sort_by_time`).
+- **Filtering** — view tasks by completion status (pending/completed) or scope
+  them to a single pet (`filter_by_status`, `filter_by_pet`).
+- **Conflict warnings** — overlapping preferred times are detected and surfaced
+  as non-blocking warnings rather than errors (`detect_conflicts`).
+- **Daily / weekly recurrence** — completing a recurring task automatically
+  creates its next occurrence on the correct future date
+  (`Task.next_occurrence`, `Pet.complete_task`).
+- **Explained plans** — every scheduled task includes a short reason for why it
+  was chosen and placed where it was.
+- **Persistent session state** — the Streamlit UI keeps your owner, pets, and
+  tasks in memory across interactions.
+
 ## Getting started
 
 ### Setup
@@ -174,14 +197,110 @@ PawPal+ implements several scheduling behaviors in the logic layer
   marks the task done and, if the task recurs, appends the freshly generated next
   occurrence to the pet's task list.
 
-## 📸 Demo Walkthrough
+## 🚶 Demo Walkthrough
 
-Describe your app in numbered steps so a reader can follow along without watching a video:
+### Main UI features
 
-1. <!-- Describe this step -->
-2. <!-- Describe this step -->
-3. <!-- Describe this step -->
-4. <!-- Describe this step -->
-5. <!-- Add more steps as needed -->
+Run the app with `streamlit run app.py`. The page lets a pet owner:
 
-**Screenshot or video** *(optional)*: <!-- Insert a screenshot or link to a demo video here -->
+- **Set the owner name** and **add pets** (name + species) — pets persist across
+  interactions and appear in a selector.
+- **Select a pet to manage** and **add tasks** to it (title, duration, priority,
+  frequency, and preferred time).
+- **View that pet's tasks** filtered by status (Pending / Completed / All) and
+  listed in chronological order.
+- **Mark a task done** — for a daily/weekly task, the next occurrence is created
+  automatically and confirmed with a success message.
+- **Set the day's time budget and start time**, then **generate a schedule**.
+- **See conflict warnings** and the generated plan (as a table), plus a
+  "Why this plan?" explanation of each choice.
+
+### Example workflow
+
+1. Enter the owner name (e.g. *Jordan*).
+2. Add a pet: *Mochi* (dog). Add a second pet: *Whiskers* (cat).
+3. Select *Mochi* and add tasks — e.g. "Morning walk" (30 min, high, daily,
+   08:00) and "Feed dog" (10 min, high, daily, 08:30).
+4. Select *Whiskers* and add "Feed cat" (5 min, high, 08:15) and "Vet call"
+   (15 min, high, 08:00).
+5. Set the time budget (e.g. 90 min) and click **Generate schedule**.
+6. Review the plan table, any conflict warnings, and the reasoning — then mark
+   tasks done as you complete them during the day.
+
+### Key Scheduler behaviors shown
+
+- **Sorting** — the plan is ordered so high-priority tasks come first and fit the
+  budget; the task list can also be shown chronologically by preferred time.
+- **Conflict warnings** — because *Morning walk* (Mochi, 08:00–08:30) and
+  *Vet call* (Whiskers, 08:00) overlap, the app flags a conflict without
+  blocking the plan.
+- **Recurrence** — marking a daily task done adds a fresh copy for tomorrow.
+- **Filtering** — the status filter and per-pet selection scope what you see.
+
+### Sample CLI output (`python main.py`)
+
+The terminal demo builds an owner with two pets and several tasks (added out of
+order, with one already completed and two deliberately at the same time), then
+prints the plan followed by the sorting/filtering and conflict-detection demos:
+
+```
+====================================================
+  Today's Schedule for Jordan
+  Time budget: 90 min | starts 08:00
+====================================================
+  1. 08:00–08:05  Feed cat (Whiskers) [high, 5 min]
+       ↳ high-priority task; fit within the remaining 90 min of budget
+  2. 08:05–08:15  Feed dog (Mochi) [high, 10 min]
+       ↳ high-priority task; fit within the remaining 85 min of budget
+  3. 08:15–08:30  Vet call (Whiskers) [high, 15 min]
+       ↳ high-priority task; fit within the remaining 75 min of budget
+  4. 08:30–09:00  Morning walk (Mochi) [high, 30 min]
+       ↳ high-priority task; fit within the remaining 60 min of budget
+  5. 09:00–09:20  Play / enrichment (Whiskers) [low, 20 min]
+       ↳ low-priority task; fit within the remaining 30 min of budget
+----------------------------------------------------
+  5 tasks scheduled, 80 min total.
+====================================================
+
+====================================================
+  Sorting & Filtering demo
+====================================================
+
+  As entered (out of order):
+    18:00  Grooming
+    08:30  Feed dog
+    08:00  Morning walk
+    17:00  Play / enrichment
+    08:15  Feed cat
+    08:00  Vet call
+
+  sort_by_time() -> chronological:
+    08:00  Morning walk
+    08:00  Vet call
+    08:15  Feed cat
+    08:30  Feed dog
+    17:00  Play / enrichment
+    18:00  Grooming
+
+  filter_by_status(completed=False) -> still to do:
+    Feed dog
+    Morning walk
+    Play / enrichment
+    Feed cat
+    Vet call
+
+  filter_by_status(completed=True) -> already done:
+    Grooming
+
+  filter_by_pet('Whiskers') -> just the cat's tasks:
+    Play / enrichment
+    Feed cat
+    Vet call
+====================================================
+
+====================================================
+  Conflict detection demo
+====================================================
+  ⚠️ Conflict (different pets): 'Morning walk' (Mochi, 08:00–08:30) overlaps 'Vet call' (Whiskers, starts 08:00).
+====================================================
+```
