@@ -87,8 +87,32 @@ now, since I can validate priorities when I actually write `priority_score()`.
 
 **b. Tradeoffs**
 
-- Describe one tradeoff your scheduler makes.
-- Why is that tradeoff reasonable for this scenario?
+One clear tradeoff is that `build_plan()` places tasks **back-to-back from
+`day_start`** using a priority-then-duration greedy fit, rather than honoring
+each task's `preferred_time` when it actually builds the timeline. Conflict
+detection *does* look at preferred times (it flags overlapping
+`[start, end)` intervals via `detect_conflicts()`), but the plan itself still
+packs tasks sequentially. So the scheduler can warn you that the 08:00 walk and
+the 08:00 vet call overlap, yet the generated plan will simply sequence them one
+after another instead of resolving the conflict or pinning either to 08:00.
+
+This tradeoff is reasonable for the scenario because the core promise of PawPal+
+is "fit the most important care into the time I have today" — a busy owner
+mostly cares that high-priority tasks are not dropped, and that the total fits
+their budget. A greedy priority fit delivers that simply and predictably, and
+runs in O(n log n) (dominated by the sort). Fully honoring preferred times would
+turn scheduling into an interval-packing / constraint-satisfaction problem with
+many more edge cases (gaps, bumping lower-priority tasks, what to do when two
+"must-happen-now" tasks collide). Separating *detection* (cheap, informative)
+from *resolution* (complex) lets the tool stay understandable and still give the
+owner the information they need to adjust manually. Honoring preferred times in
+the plan itself is a natural next iteration (see the "Smarter Scheduling"
+stretch), but was a deliberate scope line, not an oversight.
+
+A second, smaller tradeoff worth noting: I kept `detect_conflicts()` as an
+explicit indexed loop instead of a denser `zip`-based list comprehension. The
+comprehension is more "Pythonic" but harder to read; since both are O(n log n),
+I favored the readable version so the logic is easy to follow and debug.
 
 ---
 
