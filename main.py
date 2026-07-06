@@ -19,14 +19,49 @@ def build_demo_owner() -> Owner:
     owner.add_pet(dog)
     owner.add_pet(cat)
 
-    # At least three tasks, with different preferred times and priorities.
-    dog.add_task(Task("Morning walk", 30, "high", preferred_time="08:00"))
-    dog.add_task(Task("Feed dog", 10, "high", preferred_time="08:30"))
-    cat.add_task(Task("Feed cat", 5, "high", preferred_time="08:15"))
-    cat.add_task(Task("Play / enrichment", 20, "low", preferred_time="17:00"))
+    # Tasks are added OUT OF ORDER on purpose, so sort_by_time() has real work
+    # to do. (Evening grooming first, morning walk last, etc.)
     dog.add_task(Task("Grooming", 25, "medium", preferred_time="18:00"))
+    dog.add_task(Task("Feed dog", 10, "high", preferred_time="08:30"))
+    dog.add_task(Task("Morning walk", 30, "high", preferred_time="08:00"))
+    cat.add_task(Task("Play / enrichment", 20, "low", preferred_time="17:00"))
+    cat.add_task(Task("Feed cat", 5, "high", preferred_time="08:15"))
+
+    # Mark one task done so filter_by_status() has something to hide/show.
+    dog.tasks[0].mark_complete()  # Grooming already done today
 
     return owner
+
+
+def demo_sorting_and_filtering(owner: Owner) -> None:
+    """Show the new sort_by_time / filter_by_status / filter_by_pet methods."""
+    scheduler = Scheduler(owner)
+    all_tasks = owner.all_tasks()
+
+    print("\n" + "=" * 52)
+    print("  Sorting & Filtering demo")
+    print("=" * 52)
+
+    print("\n  As entered (out of order):")
+    for t in all_tasks:
+        print(f"    {t.preferred_time}  {t.title}")
+
+    print("\n  sort_by_time() -> chronological:")
+    for t in scheduler.sort_by_time(all_tasks):
+        print(f"    {t.preferred_time}  {t.title}")
+
+    print("\n  filter_by_status(completed=False) -> still to do:")
+    for t in scheduler.filter_by_status(all_tasks, completed=False):
+        print(f"    {t.title}")
+
+    print("\n  filter_by_status(completed=True) -> already done:")
+    for t in scheduler.filter_by_status(all_tasks, completed=True):
+        print(f"    {t.title}")
+
+    print("\n  filter_by_pet('Whiskers') -> just the cat's tasks:")
+    for t in scheduler.filter_by_pet("Whiskers"):
+        print(f"    {t.title}")
+    print("=" * 52)
 
 
 def print_schedule(owner: Owner) -> None:
@@ -72,6 +107,7 @@ def print_schedule(owner: Owner) -> None:
 def main() -> None:
     owner = build_demo_owner()
     print_schedule(owner)
+    demo_sorting_and_filtering(owner)
 
 
 if __name__ == "__main__":

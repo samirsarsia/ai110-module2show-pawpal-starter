@@ -175,6 +175,33 @@ class Scheduler:
             key=lambda t: (-t.priority_score(), t.duration_minutes),
         )
 
+    def sort_by_time(self, tasks: list[Task]) -> list[Task]:
+        """Order tasks chronologically by their preferred_time ("HH:MM").
+
+        The lambda key converts each "HH:MM" string to minutes-since-midnight so
+        the sort is numeric and robust. Tasks without a preferred_time sort to the
+        end (sentinel of a very large number); higher priority breaks ties when
+        two tasks share the same time.
+        """
+        return sorted(
+            tasks,
+            key=lambda t: (
+                _parse_time(t.preferred_time) if t.preferred_time else 24 * 60,
+                -t.priority_score(),
+            ),
+        )
+
+    def filter_by_status(self, tasks: list[Task], completed: bool) -> list[Task]:
+        """Return only tasks whose completion status matches `completed`."""
+        return [t for t in tasks if t.completed == completed]
+
+    def filter_by_pet(self, pet_name: str) -> list[Task]:
+        """Return the tasks belonging to the named pet (empty if no such pet)."""
+        for pet in self.owner.pets:
+            if pet.name == pet_name:
+                return list(pet.tasks)
+        return []
+
     def filter_tasks(self, tasks: list[Task], budget: int) -> list[Task]:
         """Greedily keep tasks (in the given order) that fit the time budget.
 
