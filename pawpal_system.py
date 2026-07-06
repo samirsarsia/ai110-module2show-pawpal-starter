@@ -66,6 +66,10 @@ class Task:
         """Mark this task as completed."""
         self.completed = True
 
+    def mark_complete(self) -> None:
+        """Alias for mark_done(): mark this task as completed."""
+        self.mark_done()
+
 
 @dataclass
 class Pet:
