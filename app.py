@@ -1,5 +1,7 @@
 import streamlit as st
 
+from pawpal_system import Owner, Pet, Scheduler, Task
+
 st.set_page_config(page_title="PawPal+", page_icon="🐾", layout="centered")
 
 st.title("🐾 PawPal+")
@@ -71,18 +73,66 @@ else:
 st.divider()
 
 st.subheader("Build Schedule")
-st.caption("This button should call your scheduling logic once you implement it.")
+st.caption("Set how much time you have today, then generate the plan.")
+
+time_budget = st.number_input(
+    "Time available today (minutes)", min_value=5, max_value=600, value=90, step=5
+)
+day_start = st.text_input("Day starts at (HH:MM)", value="08:00")
 
 if st.button("Generate schedule"):
-    st.warning(
-        "Not implemented yet. Next step: create your scheduling logic (classes/functions) and call it here."
-    )
-    st.markdown(
-        """
-Suggested approach:
-1. Design your UML (draft).
-2. Create class stubs (no logic).
-3. Implement scheduling behavior.
-4. Connect your scheduler here and display results.
-"""
-    )
+    if not st.session_state.tasks:
+        st.warning("Add at least one task before generating a schedule.")
+    else:
+        # Build the logic-layer objects from the UI inputs.
+        owner = Owner(owner_name, available_minutes=int(time_budget))
+        pet = Pet(pet_name, species)
+        owner.add_pet(pet)
+        for t in st.session_state.tasks:
+            pet.add_task(
+                Task(
+                    title=t["title"],
+                    duration_minutes=int(t["duration_minutes"]),
+                    priority=t["priority"],
+                )
+            )
+
+        scheduler = Scheduler(owner, day_start=day_start)
+        plan = scheduler.build_plan()
+
+        st.markdown(f"### 🗓️ Today's plan for {owner.name}")
+        if not plan:
+            st.info("No tasks fit within the available time.")
+        else:
+            st.table(
+                [
+                    {
+                        "Start": row["start"],
+                        "End": row["end"],
+                        "Task": row["title"],
+                        "Pet": row["pet"],
+                        "Priority": row["priority"],
+                        "Minutes": row["duration_minutes"],
+                    }
+                    for row in plan
+                ]
+            )
+
+            scheduled_min = sum(row["duration_minutes"] for row in plan)
+            st.caption(
+                f"{len(plan)} of {len(st.session_state.tasks)} tasks scheduled "
+                f"· {scheduled_min} of {int(time_budget)} min used."
+            )
+
+            # Explain the reasoning for each scheduled task.
+            with st.expander("Why this plan?"):
+                for row in plan:
+                    st.markdown(f"- **{row['title']}** — {row['reason']}")
+
+            # Show anything that didn't fit the budget.
+            scheduled_titles = {row["title"] for row in plan}
+            skipped = [
+                t["title"] for t in st.session_state.tasks if t["title"] not in scheduled_titles
+            ]
+            if skipped:
+                st.warning("Skipped (over budget): " + ", ".join(skipped))
