@@ -71,19 +71,53 @@ correctly:
 
 ## 🧪 Testing PawPal+
 
+Run the automated test suite from the project root:
+
 ```bash
-# Run the full test suite:
-pytest
-
-# Run with coverage:
-pytest --cov
+python -m pytest
 ```
 
-Sample test output:
+### What the tests cover
+
+The suite (`tests/test_pawpal.py`, 12 tests) verifies both happy paths and edge
+cases across the logic layer:
+
+- **Basic behavior** — marking a task complete flips its status; adding a task
+  increases a pet's task count.
+- **Sorting** — `sort_by_time()` returns tasks in chronological order, and tasks
+  with no preferred time sort to the end.
+- **Recurrence** — completing a *daily* task creates a new one due the next day;
+  *weekly* advances by 7 days; *once* tasks do not recur.
+- **Conflict detection** — overlapping preferred times are flagged, and
+  non-overlapping tasks produce no false warnings.
+- **Filtering** — `filter_by_status()` and `filter_by_pet()` return the correct
+  subsets.
+- **Edge case** — a pet with no tasks produces an empty plan and no conflicts
+  (no crash).
+
+### Sample test output
 
 ```
-# Paste your pytest output here
+============================= test session starts ==============================
+platform darwin -- Python 3.14.3, pytest-9.1.1, pluggy-1.6.0
+collected 12 items
+
+tests/test_pawpal.py ............                                        [100%]
+
+============================== 12 passed in 0.02s ==============================
 ```
+
+### Confidence Level
+
+⭐⭐⭐⭐☆ (4 / 5)
+
+All 12 tests pass and cover the core scheduling behaviors and their main edge
+cases, so I'm confident the sorting, recurrence, conflict-detection, and
+filtering logic works as intended. I held back the fifth star because a few
+areas aren't yet exercised by tests — most notably the budget-based
+`filter_tasks()` dropping over-budget tasks, and the interaction between
+conflict detection and the greedy back-to-back plan (see the tradeoff noted in
+`reflection.md`).
 
 ## 📐 Smarter Scheduling
 
