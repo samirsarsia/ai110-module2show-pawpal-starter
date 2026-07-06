@@ -1,5 +1,6 @@
 classDiagram
-    %% PawPal+ class design (draft) — keep in sync with implementation.
+    %% PawPal+ — pet care planning app (draft UML).
+    %% Four core classes. Revisit/refine in Phase 6 to match the final code.
 
     class Owner {
         +str name
@@ -24,7 +25,6 @@ classDiagram
         +int duration_minutes
         +str priority
         +str preferred_time
-        +bool recurring
         +priority_score() int
         +fits_within(remaining_minutes) bool
     }
@@ -33,31 +33,13 @@ classDiagram
         +Owner owner
         +Pet pet
         +int time_budget
-        +build_plan() Plan
+        +build_plan() list~dict~
         +sort_tasks(tasks) list~Task~
         +filter_tasks(tasks, budget) list~Task~
-    }
-
-    class Plan {
-        +list~ScheduledTask~ entries
-        +int total_minutes
-        +list~Task~ skipped_tasks
-        +add_entry(scheduled_task) None
-        +explain() str
-        +to_table() list~dict~
-    }
-
-    class ScheduledTask {
-        +Task task
-        +str start_time
-        +str end_time
-        +str reason
     }
 
     Owner "1" --> "*" Pet : owns
     Pet "1" --> "*" Task : has
     Scheduler --> Owner : uses
     Scheduler --> Pet : schedules
-    Scheduler ..> Plan : produces
-    Plan "1" --> "*" ScheduledTask : contains
-    ScheduledTask --> Task : wraps
+    Scheduler ..> Task : plans
