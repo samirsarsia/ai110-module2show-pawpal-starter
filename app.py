@@ -82,7 +82,7 @@ st.caption(f"Managing **{pet.name}** ({pet.species}).")
 st.markdown("### Tasks")
 st.caption("Tasks are stored on the persisted Owner's pet, so they survive page refreshes.")
 
-col1, col2, col3, col4 = st.columns(4)
+col1, col2, col3, col4, col5 = st.columns(5)
 with col1:
     task_title = st.text_input("Task title", value="Morning walk")
 with col2:
@@ -91,6 +91,8 @@ with col3:
     priority = st.selectbox("Priority", ["low", "medium", "high"], index=2)
 with col4:
     frequency = st.selectbox("Frequency", ["daily", "weekly", "once"], index=0)
+with col5:
+    preferred_time = st.text_input("Preferred time", value="08:00")
 
 if st.button("Add task"):
     # Append a real Task to the real Pet on the persisted Owner.
@@ -100,22 +102,41 @@ if st.button("Add task"):
             duration_minutes=int(duration),
             priority=priority,
             frequency=frequency,
+            preferred_time=preferred_time.strip() or None,
         )
     )
 
 if pet.tasks:
     st.write("Current tasks:")
+
+    # Use the Scheduler's own methods so the UI reflects the smart logic:
+    # filter by completion status, then show in chronological (time) order.
+    view_scheduler = Scheduler(owner)
+    status_filter = st.radio(
+        "Show", ["Pending", "Completed", "All"], horizontal=True, key="status_filter"
+    )
+    if status_filter == "Pending":
+        shown = view_scheduler.filter_by_status(pet.tasks, completed=False)
+    elif status_filter == "Completed":
+        shown = view_scheduler.filter_by_status(pet.tasks, completed=True)
+    else:
+        shown = list(pet.tasks)
+    shown = view_scheduler.sort_by_time(shown)  # chronological order
+
+    if not shown:
+        st.caption("No tasks match this filter.")
     # Show each task with a "Done" button. Completing a recurring task spawns its
     # next occurrence automatically via Pet.complete_task().
-    for i, t in enumerate(pet.tasks):
+    for i, t in enumerate(shown):
         c1, c2 = st.columns([5, 1])
         status = "✅" if t.completed else "⬜"
+        when = t.preferred_time or "anytime"
         c1.write(
-            f"{status} **{t.title}** — {t.duration_minutes} min, {t.priority}, "
-            f"{t.frequency} (due {t.due_date})"
+            f"{status} **{when}** — {t.title} · {t.duration_minutes} min · "
+            f"{t.priority} · {t.frequency} (due {t.due_date})"
         )
         if not t.completed:
-            if c2.button("Done", key=f"done_{i}"):
+            if c2.button("Done", key=f"done_{t.title}_{i}"):
                 new_task = pet.complete_task(t)
                 if new_task is not None:
                     st.success(
@@ -146,9 +167,18 @@ if st.button("Generate schedule"):
         owner.set_available_time(int(time_budget))
         scheduler = Scheduler(owner, day_start=day_start)
 
-        # Warn about overlapping preferred times (does not stop the plan).
-        for warning in scheduler.detect_conflicts():
-            st.warning(warning)
+        # Surface conflicts first, so the owner sees them before the plan.
+        # These are advisory (non-blocking): a conflict means two preferred
+        # times overlap, but the plan is still generated. st.warning (yellow)
+        # is the right severity — not an error, but something to act on.
+        conflicts = scheduler.detect_conflicts()
+        if conflicts:
+            st.warning(f"⚠️ {len(conflicts)} scheduling conflict(s) found:")
+            for warning in conflicts:
+                st.warning(warning)
+        else:
+            st.success("✅ No scheduling conflicts.")
+
         plan = scheduler.build_plan()
 
         st.markdown(f"### 🗓️ Today's plan for {owner.name}")
