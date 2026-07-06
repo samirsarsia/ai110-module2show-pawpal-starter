@@ -43,6 +43,7 @@ class Task:
     completed: bool = False
 
     def __post_init__(self) -> None:
+        """Validate priority, frequency, and duration after construction."""
         if self.priority not in PRIORITY_ORDER:
             raise ValueError(
                 f"priority must be one of {sorted(PRIORITY_ORDER)}, got {self.priority!r}"
@@ -143,6 +144,7 @@ class Scheduler:
         time_budget: int | None = None,
         day_start: str = "08:00",
     ) -> None:
+        """Set up the scheduler with an owner, time budget, and day-start anchor."""
         self.owner = owner
         # Fall back to the owner's available time if no explicit budget is given.
         self.time_budget = time_budget if time_budget is not None else owner.available_minutes
